@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indovisual Music | Full Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Megrim&family=Montserrat:wght@200;300;400&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #030405;
+            overflow: hidden;
+            font-family: 'Montserrat', sans-serif;
+            color: #ffffff;
+            transform: translateZ(0); 
+        }
+
+        /* --- INITIATE BLACK SCREEN --- */
+        .initiate-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #000000;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
+        }
+
+        .initiate-text {
+            font-family: 'Megrim', cursive;
+            font-size: 32px;
+            letter-spacing: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.4);
+            transition: all 0.4s ease;
+        }
+
+        .initiate-screen:hover .initiate-text {
+            color: #d4af37;
+            letter-spacing: 18px;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.8);
+        }
+
+        /* --- GOLDEN FLASH OVERLAY --- */
+        .flash-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #d4af37;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9900;
+            mix-blend-mode: screen;
+            will-change: opacity;
+        }
+
+        /* --- THE HYBRID REALISTIC EYE OF RA --- */
+        .eye-container {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 500px; height: 400px;
+            transform: translate(-50%, -50%) scale(12);
+            opacity: 0; 
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            will-change: transform, opacity;
+        }
+        .eye-svg { width: 100%; height: 100%; }
+
+        /* --- THE VORONOI GRID --- */
+        .voronoi-wrapper {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            opacity: 0;
+            z-index: 10;
+            pointer-events: none;
+            will-change: opacity, transform;
+        }
+
+        svg#voronoi-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .bg-cell {
+            fill: none;
+            stroke: rgba(212, 175, 55, 0.15);
+            stroke-width: 1;
+        }
+
+        .active-cell {
+            cursor: pointer;
+            stroke: rgba(212, 175, 55, 0.5);
+            stroke-width: 2;
+            transition: stroke-width 0.2s ease, stroke 0.2s ease;
+        }
+
+        .active-group:hover .active-cell {
+            stroke: rgba(212, 175, 55, 1);
+            stroke-width: 4;
+            fill-opacity: 1 !important;
+        }
+
+        /* TEXT SIZING - Fixed to fit inside cells without clipping */
+        .cell-text-main {
+            font-family: 'Megrim', cursive;
+            font-size: 52px; /* Scaled down slightly to fit */
+            font-weight: 600;
+            letter-spacing: 4px;
+            fill: rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .active-group:hover .cell-text-main {
+            fill: #d4af37;
+            font-size: 58px;
+            text-shadow: 0px 0px 15px rgba(212, 175, 55, 0.6);
+        }
+
+        .cell-text-sub {
+            font-family: 'Megrim', cursive;
+            font-size: 24px; /* Small enough to fit inside 20 grid cells */
+            font-weight: 600;
+            letter-spacing: 2px;
+            fill: rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .active-group:hover .cell-text-sub {
+            fill: #d4af37;
+            font-size: 28px;
+            text-shadow: 0px 0px 10px rgba(212, 175, 55, 0.6);
+        }
+
+        /* --- RETURN BUTTON --- */
+        .back-btn {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            padding: 15px 40px;
+            background: rgba(0,0,0,0.8);
+            z-index: 50;
+            display: none;
+            opacity: 0;
+            clip-path: polygon(5% 0, 100% 0, 95% 100%, 0 100%);
+            transition: all 0.3s ease;
+        }
+        .back-btn:hover {
+            background-color: #d4af37;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Initiate Screen -->
+    <div class="initiate-screen" id="initiate-btn">
+        <div class="initiate-text">Initiate</div>
+    </div>
+
+    <!-- Flash Overlay -->
+    <div class="flash-overlay" id="flash-overlay"></div>
+
+    <!-- The Eye -->
+    <div class="eye-container" id="eye">
+        <svg class="eye-svg" viewBox="0 0 500 400">
+            <defs>
+                <radialGradient id="irisGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="10%" stop-color="#000000"/>
+                    <stop offset="15%" stop-color="#1a1105"/>
+                    <stop offset="35%" stop-color="#b8860b"/>
+                    <stop offset="60%" stop-color="#8b4513"/>
+                    <stop offset="85%" stop-color="#2a4b7c"/>
+                    <stop offset="100%" stop-color="#000000"/>
+                </radialGradient>
+                <clipPath id="eyeClip">
+                    <path d="M 100 200 Q 250 110 400 200 Q 250 290 100 200 Z" />
+                </clipPath>
+            </defs>
+            <path id="brow" d="M 50 120 Q 250 30 450 140" fill="none" stroke="#d4af37" stroke-width="16" stroke-linecap="round" />
+            <path id="liner" d="M 85 200 Q 250 95 415 200 Q 250 305 85 200 Z" fill="#000" stroke="#000" stroke-width="15" stroke-linejoin="round"/>
+            <path d="M 100 200 Q 250 110 400 200 Q 250 290 100 200 Z" fill="#fcfaf5" />
+            <circle cx="115" cy="200" r="12" fill="#d99f9f" clip-path="url(#eyeClip)" opacity="0.8"/>
+            <circle id="iris" cx="250" cy="200" r="70" fill="url(#irisGrad)" clip-path="url(#eyeClip)"/>
+            <circle id="pupil" cx="250" cy="200" r="22" fill="#000" clip-path="url(#eyeClip)"/>
+            <ellipse id="specular1" cx="220" cy="170" rx="14" ry="8" fill="#ffffff" opacity="0.6" transform="rotate(-30 220 170)" />
+            <circle id="specular2" cx="265" cy="230" r="4" fill="#ffffff" opacity="0.3"/>
+            <path id="tail" d="M 405 200 Q 460 200 480 230" fill="none" stroke="#000" stroke-width="16" stroke-linecap="round"/>
+            <path id="falcon" d="M 250 290 L 250 350 Q 250 380 210 390 Q 225 360 225 340 L 225 290 Z" fill="#000"/>
+            <path id="curl" d="M 220 280 C 180 320 150 340 110 340 C 130 320 160 300 190 270 Z" fill="#000"/>
+        </svg>
+    </div>
+
+    <!-- The Matrix Hub -->
+    <div class="voronoi-wrapper" id="voronoi-wrapper">
+        <svg id="voronoi-svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+            <defs id="svg-defs">
+                <!-- Gradients for different pages -->
+                <linearGradient id="grad-sculpture" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(80, 50, 20, 0.7)" />
+                    <stop offset="100%" stop-color="rgba(30, 15, 5, 0.9)" />
+                </linearGradient>
+                <linearGradient id="grad-design" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(20, 50, 80, 0.7)" />
+                    <stop offset="100%" stop-color="rgba(5, 15, 30, 0.9)" />
+                </linearGradient>
+                <linearGradient id="grad-music" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(80, 20, 30, 0.7)" />
+                    <stop offset="100%" stop-color="rgba(30, 5, 10, 0.9)" />
+                </linearGradient>
+                <linearGradient id="grad-pro" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(30, 60, 40, 0.7)" />
+                    <stop offset="100%" stop-color="rgba(10, 25, 15, 0.9)" />
+                </linearGradient>
+            </defs>
+            <!-- Matrix Layers will be injected here -->
+        </svg>
+    </div>
+
+    <!-- Return to Main Button -->
+    <div class="back-btn" id="back-btn">Return to Matrix</div>
+
+    <script>
+        const matrixData = {"main": {"active": [[450, 300], [850, 750], [1350, 250], [1650, 700]], "bg": [[356, -49], [814, 185], [319, 1016], [256, 1109], [1628, -35], [22, 91], [1969, 1132], [8, 1049], [1739, 1106], [1039, -87], [279, 678], [296, 635], [1308, 1136], [983, -12], [411, 675], [222, 1030], [1100, 1166], [1381, 1082], [87, 366], [853, 106], [993, 46], [902, 234], [31, 546], [1779, 192], [984, 185], [976, 1097], [1654, 1095], [798, 183], [1987, 910], [160, 688], [1463, 1120], [-53, 134], [1758, -94], [335, 1180], [-98, 1126], [1227, 900], [-21, 129], [880, 18], [1890, 41], [1846, 1025]]}, "sculpture": {"active": [[138.4203134358604, 139.42780598692065], [593.0550267972206, 209.29806496119284], [1028.6261588803484, 175.8424314617289], [1374.3788211359395, 169.0718356510595], [1711.8387679995888, 162.46991354212528], [171.74728040468702, 468.9382535428713], [568.2377826225808, 364.6648981865613], [890.2441434122152, 328.36548160112943], [1352.6274435879168, 419.15041830565616], [1649.150534237615, 438.25455144775265], [121.41980270021175, 605.7840524976492], [501.0260732884829, 647.8685582528798], [962.2649791693742, 639.5563622343275], [1341.6663198640786, 681.2774290231607], [1763.7364105409554, 736.181292022518], [204.19386395534397, 903.8795587833159], [571.675670871135, 930.1295938377499], [895.0921274387011, 970.4372399223461], [1320.6876106543286, 930.776364167958], [1786.2138797391365, 873.6673899571473]], "bg": [[203, -76], [1449, 494], [247, 309], [584, 189], [1996, 718], [374, 664], [551, 370], [1694, 311], [108, 707], [2054, 0], [7, 1135], [2014, -170], [182, 284], [481, 632], [1789, 785], [675, 621], [40, 137], [1352, -196], [1399, 343], [1663, 384], [1532, 1226], [2076, 1155], [1793, 117], [577, 407], [691, -81], [2020, -76], [1084, -83], [5, 996], [1752, 829], [1975, 122]]}, "design": {"active": [[121.10073275658952, 136.25255951894695], [632.2148072550594, 65.96341323260677], [890.8737381401212, 192.8910723152207], [1328.6040882109244, 205.6553803566543], [1739.1480656221097, 147.6270492011537], [118.3586659662503, 338.1173448791801], [601.1797063156037, 415.4363078150543], [930.6191753562763, 366.7225112965813], [1371.1561559631728, 375.26941804729216], [1690.4983220050167, 345.94052514039305], [215.2801262140239, 668.1559316112723], [644.6429330728822, 744.7174859911718], [881.4904731014794, 694.3854808788949], [1354.0789833022313, 610.9969998279341], [1734.0215046562603, 675.9415510478025], [133.19305125863477, 920.8414135943224], [507.0066102496031, 904.085506641301], [925.597982594665, 935.1095316812335], [1350.9148739618538, 913.4027428766224], [1805.416529640237, 994.1359909224228]], "bg": [[1966, -184], [2071, 413], [224, 75], [883, 36], [238, 933], [436, 357], [954, 1038], [662, 1269], [1204, 216], [881, 835], [1801, 314], [8, -11], [1534, 366], [-20, -193], [1166, 67], [872, 130], [1609, 929], [1551, 948], [-161, 29], [108, 1215], [410, 917], [-53, 556], [2063, 103], [1560, 61], [-29, 431], [1293, -119], [1265, 230], [822, 1165], [221, 524], [2093, 632]]}, "music": {"active": [[267.81392362196624, 174.91641778296628], [644.122211611129, 92.87797315669738], [906.0002827360702, 182.98192478510344], [1292.328379251261, 120.96710565660757], [1676.697706146913, 202.9179672386473], [237.18183938362108, 390.8741066482486], [603.1851406861115, 442.60920621246015], [919.7067585787842, 350.471654876917], [1376.204510102386, 386.2066756155095], [1654.1959372265258, 400.31040337375845], [143.9316528041203, 741.9523041967192], [551.945347911347, 726.2858209554499], [1019.4116857380814, 630.6677675529295], [1369.6053092397806, 658.7545565703654], [1692.5764897636807, 606.1073207460512], [235.73226199045774, 921.1833806532403], [577.504908084486, 973.7228989376422], [1014.9857861235329, 917.9839789143051], [1268.4160856191418, 1005.3261458520897], [1689.7944314224337, 957.8943573981933]], "bg": [[887, -122], [244, 1021], [1579, 507], [1084, 693], [1894, 36], [1377, 980], [578, 321], [-19, 1251], [1586, -197], [1929, 902], [607, 545], [1566, -57], [1152, 1076], [1085, 1158], [310, 1274], [1030, 838], [1066, 1165], [1472, 468], [1448, 1227], [1011, 935], [321, 192], [1522, 1161], [1352, 1187], [512, 1060], [1032, 631], [2044, -200], [1044, 387], [660, 680], [1119, 752], [1609, 705]]}, "pro": {"active": [[220.10035731041597, 136.78783949993394], [622.9976638569603, 208.5731205892858], [997.7538313504355, 160.41611919974747], [1309.4058247988844, 161.2166138087998], [1747.0817288579801, 69.94195201209003], [264.319945992396, 362.57897576426944], [545.6671142871865, 454.0500631322025], [903.5766339593237, 332.39419489484135], [1421.4297636450963, 422.8038356897088], [1770.9582942400316, 397.8665869408143], [253.78190544815703, 687.1073439054909], [610.9353464798381, 656.4365547828402], [943.944458060246, 618.6114152146077], [1374.0195860928832, 737.8255721938186], [1785.6704904676035, 736.6744328815786], [236.54726508277201, 900.0145818899712], [624.6575769877029, 976.3458842253182], [954.3279815318804, 954.1849270453432], [1410.7952023128705, 884.4173758703015], [1669.3342568891246, 939.3429179997179]], "bg": [[1975, 944], [1099, 706], [1867, 673], [2044, 713], [451, 772], [1643, 330], [812, 1105], [935, 867], [1784, 1083], [779, 362], [1601, -42], [970, 280], [912, 487], [1109, 906], [130, 83], [417, 273], [1368, 1221], [425, 1246], [676, -69], [1499, 634], [1155, 911], [1708, 651], [55, 223], [1520, 597], [-120, 979], [1358, 776], [-176, 520], [1023, 598], [1516, 902], [2036, 1035]]}};
+
+        // Metadata for populating the text
+        const pageMeta = {
+            "main": [
+                { name: "SCULPTURE", fill: "url(#grad-sculpture)", id: "sculpture" },
+                { name: "DESIGN", fill: "url(#grad-design)", id: "design" },
+                { name: "MUSIC", fill: "url(#grad-music)", id: "music" },
+                { name: "PRO WORK", fill: "url(#grad-pro)", id: "pro" }
+            ],
+            "sculpture": { fill: "url(#grad-sculpture)", prefix: "Artwork" },
+            "design": { fill: "url(#grad-design)", prefix: "Project" },
+            "music": { fill: "url(#grad-music)", prefix: "Track" },
+            "pro": { fill: "url(#grad-pro)", prefix: "Client" }
+        };
+
+        const svg = document.getElementById('voronoi-svg');
+        let currentLayer = "main";
+
+        // GENERATE ALL LAYERS
+        for (const [key, layout] of Object.entries(matrixData)) {
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            group.setAttribute("id", `layer-${key}`);
+
+            // Hide sub-pages initially
+            if (key !== "main") {
+                group.style.display = "none";
+                group.style.opacity = 0;
+            }
+
+            const allPoints = [...layout.active, ...layout.bg];
+            const delaunay = d3.Delaunay.from(allPoints);
+            const voronoi = delaunay.voronoi([0, 0, 1920, 1080]);
+
+            for (let i = 0; i < allPoints.length; i++) {
+                const pathData = voronoi.renderCell(i);
+
+                // If it's one of our target Active points
+                if (i < layout.active.length) {
+                    const cellGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    cellGroup.setAttribute("class", "active-group");
+                    cellGroup.style.pointerEvents = "auto";
+
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("d", pathData);
+                    path.setAttribute("class", "active-cell");
+
+                    // Assign text and colors based on whether it's main or sub page
+                    let textString = "";
+                    if (key === "main") {
+                        path.setAttribute("fill", pageMeta.main[i].fill);
+                        path.setAttribute("fill-opacity", "0.85");
+                        textString = pageMeta.main[i].name;
+                        cellGroup.addEventListener('click', () => switchLayer(pageMeta.main[i].id));
+                    } else {
+                        path.setAttribute("fill", pageMeta[key].fill);
+                        path.setAttribute("fill-opacity", "0.6");
+                        // Format: "Artwork 01", "Track 12", etc.
+                        textString = `${pageMeta[key].prefix} ${String(i + 1).padStart(2, '0')}`;
+                        cellGroup.addEventListener('click', () => console.log(`Clicked ${textString}`));
+                    }
+
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute("x", allPoints[i][0]);
+                    text.setAttribute("y", allPoints[i][1]);
+                    text.setAttribute("text-anchor", "middle");
+                    text.setAttribute("dominant-baseline", "middle");
+                    // Use appropriate CSS class to ensure fitting without clipping
+                    text.setAttribute("class", key === "main" ? "cell-text-main" : "cell-text-sub");
+                    text.textContent = textString;
+
+                    cellGroup.appendChild(path);
+                    cellGroup.appendChild(text);
+                    group.appendChild(cellGroup);
+                } else {
+                    // Background Point
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("d", pathData);
+                    path.setAttribute("class", "bg-cell");
+                    group.appendChild(path);
+                }
+            }
+            svg.appendChild(group);
+        }
+
+        // ANIMATION & NAVIGATION LOGIC
+        const initiateBtn = document.getElementById('initiate-btn');
+        const eye = document.getElementById('eye');
+        const flashOverlay = document.getElementById('flash-overlay');
+        const voronoiWrapper = document.getElementById('voronoi-wrapper');
+        const backBtn = document.getElementById('back-btn');
+
+        // Start Sequence
+        initiateBtn.addEventListener('click', () => {
+            const tl = gsap.timeline();
+            gsap.set(eye, { opacity: 1 });
+
+            tl.to(flashOverlay, { opacity: 1, duration: 0.1 })
+              .set(initiateBtn, { display: 'none' })
+              .to(flashOverlay, { opacity: 0, duration: 0.5 })
+              .to(eye, { scale: 1, duration: 2.5, ease: "power3.inOut" }, "-=0.4")
+              .to({}, { duration: 0.5 }) // Pause
+              .to(flashOverlay, { opacity: 1, duration: 0.1 })
+              .set(eye, { display: 'none' }) 
+              .set(voronoiWrapper, { pointerEvents: "auto", opacity: 1 })
+              .to(flashOverlay, { opacity: 0, duration: 1.5, ease: "power2.out" })
+              .fromTo("#layer-main .bg-cell", { strokeOpacity: 0 }, { strokeOpacity: 1, duration: 1 }, "-=1.5")
+              .fromTo("#layer-main .active-group", { opacity: 0, scale: 0.95, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.2)" }, "-=1.0");
+        });
+
+        // Switch Layer Function (Navigating into a category)
+        function switchLayer(targetLayer) {
+            const tl = gsap.timeline();
+
+            // Fade out current layer
+            tl.to(`#layer-${currentLayer}`, { opacity: 0, scale: 1.05, duration: 0.4, transformOrigin: "50% 50%" })
+              .set(`#layer-${currentLayer}`, { display: "none" })
+              // Prepare target layer
+              .set(`#layer-${targetLayer}`, { display: "block", scale: 0.95, opacity: 0, transformOrigin: "50% 50%" })
+              // Show Target
+              .to(`#layer-${targetLayer}`, { opacity: 1, scale: 1, duration: 0.6, ease: "power2.out" })
+              // Fade in Back Button
+              .set(backBtn, { display: "block" })
+              .to(backBtn, { opacity: 1, duration: 0.4 }, "-=0.2");
+
+            currentLayer = targetLayer;
+        }
+
+        // Back Button Logic
+        backBtn.addEventListener('click', () => {
+            const tl = gsap.timeline();
+
+            tl.to(backBtn, { opacity: 0, duration: 0.3 })
+              .set(backBtn, { display: "none" })
+              .to(`#layer-${currentLayer}`, { opacity: 0, scale: 0.95, duration: 0.4, transformOrigin: "50% 50%" })
+              .set(`#layer-${currentLayer}`, { display: "none" })
+              .set("#layer-main", { display: "block", scale: 1.05, opacity: 0, transformOrigin: "50% 50%" })
+              .to("#layer-main", { opacity: 1, scale: 1, duration: 0.6, ease: "power2.out" });
+
+            currentLayer = "main";
+        });
+
+    </script>
+</body>
+</html>
