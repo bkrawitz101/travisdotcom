@@ -171,6 +171,33 @@
             background-color: #d4af37;
             color: #000;
         }
+
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 768px) {
+            .cell-text-main {
+                font-size: 28px;
+                letter-spacing: 2px;
+            }
+            .active-group:hover .cell-text-main {
+                font-size: 32px;
+            }
+            .cell-text-sub {
+                font-size: 14px;
+                letter-spacing: 1px;
+            }
+            .active-group:hover .cell-text-sub {
+                font-size: 16px;
+            }
+            .eye-container {
+                width: 300px;
+                height: 240px;
+            }
+            .back-btn {
+                width: 60%;
+                font-size: 12px;
+                padding: 15px 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -262,6 +289,19 @@
         const svg = document.getElementById('voronoi-svg');
         let currentLayer = "main";
 
+        // --- RESPONSIVE SCALING SETUP ---
+        const baseWidth = 1920;
+        const baseHeight = 1080;
+        const winWidth = window.innerWidth;
+        const winHeight = window.innerHeight;
+        const scaleX = winWidth / baseWidth;
+        const scaleY = winHeight / baseHeight;
+        const scalePoint = (p) => [p[0] * scaleX, p[1] * scaleY];
+
+        // Update SVG to match viewport exactly
+        svg.setAttribute("viewBox", `0 0 ${winWidth} ${winHeight}`);
+        svg.removeAttribute("preserveAspectRatio");
+
         // GENERATE ALL LAYERS
         for (const [key, layout] of Object.entries(matrixData)) {
             const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -273,15 +313,19 @@
                 group.style.opacity = 0;
             }
 
-            const allPoints = [...layout.active, ...layout.bg];
+            // Scale points to fit the current screen size
+            const activePoints = layout.active.map(scalePoint);
+            const bgPoints = layout.bg.map(scalePoint);
+            const allPoints = [...activePoints, ...bgPoints];
+
             const delaunay = d3.Delaunay.from(allPoints);
-            const voronoi = delaunay.voronoi([0, 0, 1920, 1080]);
+            const voronoi = delaunay.voronoi([0, 0, winWidth, winHeight]);
 
             for (let i = 0; i < allPoints.length; i++) {
                 const pathData = voronoi.renderCell(i);
 
                 // If it's one of our target Active points
-                if (i < layout.active.length) {
+                if (i < activePoints.length) {
                     const cellGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
                     cellGroup.setAttribute("class", "active-group");
                     cellGroup.style.pointerEvents = "auto";
